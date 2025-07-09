@@ -1,0 +1,94 @@
+{
+  "name": "simple_query_router",
+  "description": "Simplified query routing agent for learning purposes",
+  "config": {
+    "default_llm_provider": "ollama",
+    "default_model": "llama3.2:3b"
+  },
+  "steps": [
+    {
+      "id": "input_query",
+      "type": "input",
+      "config": {"prompt": "What's your question?"},
+      "outputs": ["user_query"]
+    },
+    {
+      "id": "classify",
+      "type": "llm_structured",
+      "config": {
+        "provider": "ollama",
+        "model": "llama3.2:3b",
+        "response_schema": {
+          "name": "Classification",
+          "fields": {
+            "category": {"type": "string", "enum": ["home", "japanese", "general"]},
+            "confidence": {"type": "float"}
+          }
+        },
+        "system_message": "Classify queries:\n- 'home': Smart home, IoT, automation\n- 'japanese': Japanese language/culture\n- 'general': Everything else"
+      },
+      "inputs": {
+        "message": {
+          "from_step": "input_query",
+          "field": "user_query"
+        }
+      },
+      "outputs": ["classification"]
+    },
+    {
+      "id": "home_expert",
+      "type": "llm_chat",
+      "config": {
+        "provider": "ollama",
+        "model": "llama3.2:3b",
+        "system_message": "You are a smart home automation expert."
+      },
+      "inputs": {
+        "message": {
+          "from_step": "input_query",
+          "field": "user_query"
+        }
+      },
+      "outputs": ["response"]
+    },
+    {
+      "id": "japanese_expert", 
+      "type": "llm_chat",
+      "config": {
+        "provider": "ollama",
+        "model": "llama3.2:3b",
+        "system_message": "You are a Japanese language and culture expert."
+      },
+      "inputs": {
+        "message": {
+          "from_step": "input_query",
+          "field": "user_query"
+        }
+      },
+      "outputs": ["response"]
+    },
+    {
+      "id": "general_expert",
+      "type": "llm_chat", 
+      "config": {
+        "provider": "ollama",
+        "model": "llama3.2:3b",
+        "system_message": "You are a helpful general knowledge assistant."
+      },
+      "inputs": {
+        "message": {
+          "from_step": "input_query",
+          "field": "user_query"
+        }
+      },
+      "outputs": ["response"]
+    },
+    {
+      "id": "final_output",
+      "type": "output",
+      "inputs": {
+        "result": "Response from specialized assistant"
+      }
+    }
+  ]
+}

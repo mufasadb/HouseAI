@@ -1,0 +1,220 @@
+{
+  "name": "voice_orchestration_agent",
+  "description": "Complete voice-to-response agent that transcribes audio, classifies questions, and routes to specialized handlers",
+  "config": {
+    "memory_backend": "auto",
+    "default_llm_provider": "ollama",
+    "default_model": "qwen2.5:7b"
+  },
+  "steps": [
+    {
+      "id": "transcribe_audio",
+      "type": "stt",
+      "description": "Transcribe audio input to text",
+      "config": {
+        "provider": "openai",
+        "model": "whisper-1",
+        "language": "auto"
+      },
+      "inputs": {
+        "audio_file": "$audio_file_path"
+      },
+      "outputs": ["transcribed_text"]
+    },
+    {
+      "id": "classify_question",
+      "type": "llm_structured",
+      "description": "Classify the transcribed question using Llama 2.5",
+      "config": {
+        "provider": "ollama",
+        "model": "qwen2.5:7b",
+        "temperature": 0.1,
+        "response_schema": {
+          "name": "QuestionClassification",
+          "fields": {
+            "category": {
+              "type": "string",
+              "enum": ["japanese", "home_assistant", "general"],
+              "description": "The category of question that determines which handler to use"
+            },
+            "confidence": {
+              "type": "float",
+              "description": "Confidence score between 0 and 1 for the classification"
+            },
+            "reasoning": {
+              "type": "string",
+              "description": "Brief explanation of why this category was chosen"
+            }
+          }
+        },
+        "system_message": "You are a question classifier that determines which specialized handler should process a user's question. Classify questions into these categories:\n\n- 'japanese': Japanese language questions, culture, anime, manga, travel to Japan, Japanese food, customs, traditions. For basic Japanese questions, provide simple responses.\n- 'home_assistant': Smart home automation, IoT devices, home security, lighting, thermostats, appliances, Home Assistant platform questions.\n- 'general': Everything else including science, programming, general knowledge, math, history, etc.\n\nProvide a confidence score and brief reasoning for your classification."
+      },
+      "inputs": {
+        "message": {
+          "template": "Classify this transcribed question: {{ transcribed_text }}",
+          "variables": {
+            "transcribed_text": {
+              "from_step": "transcribe_audio",
+              "field": "transcribed_text"
+            }
+          }
+        }
+      },
+      "outputs": ["category", "confidence", "reasoning"]
+    },
+    {
+      "id": "route_question",
+      "type": "condition",
+      "description": "Route the question to the appropriate specialized handler",
+      "config": {
+        "condition_type": "field_value",
+        "field_to_check": "category",
+        "route_options": ["japanese", "home_assistant", "general"],
+        "default_route": "general"
+      },
+      "inputs": {
+        "category": {
+          "from_step": "classify_question",
+          "field": "category"
+        }
+      },
+      "routes": {
+        "japanese": "japanese_handler",
+        "home_assistant": "home_assistant_handler",
+        "general": "general_handler"
+      }
+    },
+    {
+      "id": "japanese_handler",
+      "type": "llm_chat",
+      "description": "Handle Japanese language questions with simple responses",
+      "config": {
+        "provider": "ollama",
+        "model": "qwen2.5:7b",
+        "temperature": 0.7,
+        "use_conversation": false,
+        "system_message": "You are a helpful Japanese language assistant. When users ask Japanese questions, respond with very simple Japanese and include English explanations. Keep responses basic and educational. For cultural questions, provide respectful and accurate information about Japanese culture, customs, and traditions. Always be patient and encouraging with language learners."
+      },
+      "inputs": {
+        "message": {
+          "template": "Original question: {{ transcribed_text }}\n\nClassification confidence: {{ confidence }}\nReasoning: {{ reasoning }}\n\nPlease provide a helpful response in simple Japanese with English explanations where appropriate.",
+          "variables": {
+            "transcribed_text": {
+              "from_step": "transcribe_audio",
+              "field": "transcribed_text"
+            },
+            "confidence": {
+              "from_step": "classify_question",
+              "field": "confidence"
+            },
+            "reasoning": {
+              "from_step": "classify_question",
+              "field": "reasoning"
+            }
+          }
+        }
+      },
+      "outputs": ["response"],
+      "routes": {"default": "format_output"}
+    },
+    {
+      "id": "home_assistant_handler",
+      "type": "llm_chat",
+      "description": "Handle Home Assistant and smart home questions with actual integration",
+      "config": {
+        "provider": "ollama",
+        "model": "qwen2.5:7b",
+        "temperature": 0.3,
+        "use_conversation": false,
+        "system_message": "You are a Home Assistant expert that can actually interact with smart home devices. You have access to tools to control lights, check device status, and manage home automation. When users ask about home control, provide practical advice and actually execute commands when appropriate. Focus on being helpful and actionable.",
+        "tools": ["home_assistant"]
+      },
+      "inputs": {
+        "message": {
+          "template": "Original question: {{ transcribed_text }}\n\nClassification confidence: {{ confidence }}\nReasoning: {{ reasoning }}\n\nPlease provide a helpful response and take any necessary actions to control Home Assistant devices.",
+          "variables": {
+            "transcribed_text": {
+              "from_step": "transcribe_audio",
+              "field": "transcribed_text"
+            },
+            "confidence": {
+              "from_step": "classify_question",
+              "field": "confidence"
+            },
+            "reasoning": {
+              "from_step": "classify_question",
+              "field": "reasoning"
+            }
+          }
+        }
+      },
+      "outputs": ["response"],
+      "routes": {"default": "format_output"}
+    },
+    {
+      "id": "general_handler",
+      "type": "llm_chat",
+      "description": "Handle general questions using Gemini Flash 1.5",
+      "config": {
+        "provider": "gemini",
+        "model": "gemini-1.5-flash",
+        "temperature": 0.7,
+        "use_conversation": false,
+        "system_message": "You are a knowledgeable general assistant with expertise across many domains including programming, science, mathematics, technology, history, geography, arts, literature, and philosophy. Provide accurate, well-reasoned responses with clear explanations. When appropriate, include examples, step-by-step guidance, or references to help users understand complex topics."
+      },
+      "inputs": {
+        "message": {
+          "template": "Original question: {{ transcribed_text }}\n\nClassification confidence: {{ confidence }}\nReasoning: {{ reasoning }}\n\nPlease provide a comprehensive and helpful response.",
+          "variables": {
+            "transcribed_text": {
+              "from_step": "transcribe_audio",
+              "field": "transcribed_text"
+            },
+            "confidence": {
+              "from_step": "classify_question",
+              "field": "confidence"
+            },
+            "reasoning": {
+              "from_step": "classify_question",
+              "field": "reasoning"
+            }
+          }
+        }
+      },
+      "outputs": ["response"],
+      "routes": {"default": "format_output"}
+    },
+    {
+      "id": "format_output",
+      "type": "output",
+      "description": "Format the final response with classification and handling information",
+      "config": {
+        "format": "text"
+      },
+      "inputs": {
+        "result": {
+          "template": "🎤 Transcribed: {{ transcribed_text }}\n\n🤖 Handler: {{ category }}\n📊 Confidence: {{ confidence }}\n💭 Reasoning: {{ reasoning }}\n\n📝 Response:\n{{ response }}",
+          "variables": {
+            "transcribed_text": {
+              "from_step": "transcribe_audio",
+              "field": "transcribed_text"
+            },
+            "category": {
+              "from_step": "classify_question",
+              "field": "category"
+            },
+            "confidence": {
+              "from_step": "classify_question",
+              "field": "confidence"
+            },
+            "reasoning": {
+              "from_step": "classify_question",
+              "field": "reasoning"
+            },
+            "response": "$response"
+          }
+        }
+      }
+    }
+  ]
+}

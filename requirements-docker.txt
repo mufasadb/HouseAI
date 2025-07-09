@@ -1,0 +1,13 @@
+# Docker-specific requirements for Voice Orchestration Agent
+# Lightweight dependencies for containerized deployment
+
+requests>=2.31.0
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+openai>=1.0.0
+
+# Audio processing (optional, for local recording)
+pyaudio>=0.2.11
+
+# JSON handling (usually included in Python)
+# No heavy ML libraries needed since we use remote services

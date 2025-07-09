@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git clone:*)",
+      "Bash(pip install:*)",
+      "Bash(copy-env-vars)",
+      "Bash(python test:*)",
+      "Bash(python:*)",
+      "Bash(grep:*)",
+      "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(curl:*)",
+      "Bash(ollama list:*)",
+      "Bash(rm:*)",
+      "Bash(chmod:*)",
+      "Bash(./test_routing.sh:*)",
+      "Bash(rg:*)",
+      "Bash(find:*)"
+    ],
+    "deny": []
+  }
+}

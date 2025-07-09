@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  voice-agent:
+    build: .
+    container_name: voice-orchestration-agent
+    restart: unless-stopped
+    
+    # Environment configuration
+    environment:
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - FASTER_WHISPER_URL=${FASTER_WHISPER_URL:-http://host.docker.internal:8003}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - GOOGLE_AI_STUDIO_KEY=${GOOGLE_AI_STUDIO_KEY:-}
+      - HASS_URL=${HASS_URL:-}
+      - HASS_API=${HASS_API:-}
+    
+    # Volume mounts
+    volumes:
+      - ./recordings:/app/recordings
+      - ./audio_input:/app/audio_input
+      - ./logs:/app/logs
+      - /dev/snd:/dev/snd  # Audio device access
+    
+    # Device access for audio
+    devices:
+      - /dev/snd:/dev/snd
+    
+    # Network configuration
+    network_mode: bridge
+    
+    # For audio recording capabilities
+    privileged: false
+    
+    # Command override options:
+    # Uncomment one of these based on your use case
+    
+    # Watch directory mode (default)
+    # command: ["python", "pi_service.py", "watch", "/app/audio_input"]
+    
+    # Continuous recording mode
+    # command: ["python", "pi_service.py", "continuous"]
+    
+    # Single file processing mode
+    # command: ["python", "pi_voice_agent.py", "/app/recordings/test.m4a"]
+
+  # Optional: Development mode with volume mounting for live code changes
+  voice-agent-dev:
+    build: .
+    container_name: voice-agent-dev
+    restart: "no"
+    profiles: ["dev"]
+    
+    environment:
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - FASTER_WHISPER_URL=${FASTER_WHISPER_URL:-http://host.docker.internal:8003}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    
+    volumes:
+      - .:/app  # Mount entire project for development
+      - /dev/snd:/dev/snd
+    
+    devices:
+      - /dev/snd:/dev/snd
+    
+    command: ["python", "pi_service.py", "watch", "/app/audio_input"]
