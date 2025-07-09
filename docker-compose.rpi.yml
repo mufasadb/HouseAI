@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  houseai-wake-word:
+    build:
+      context: .
+      dockerfile: Dockerfile.rpi
+    container_name: houseai-wake-word
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./recordings:/app/recordings
+      - /dev/snd:/dev/snd
+    devices:
+      - /dev/snd
+    privileged: true
+    environment:
+      - PYTHONPATH=/app:/app/ai-lego-bricks
+      - PULSE_RUNTIME_PATH=/run/user/1000/pulse
+    network_mode: host
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8080/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
