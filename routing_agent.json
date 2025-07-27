@@ -1,0 +1,50 @@
+{
+  "name": "routing_agent",
+  "description": "Query routing agent that decides which specialized agent should handle the user's request",
+  "steps": [
+    {
+      "id": "get_user_query",
+      "type": "input",
+      "description": "Get user's query for routing",
+      "config": {
+        "prompt": "What can I help you with today?"
+      },
+      "outputs": ["user_query"]
+    },
+    {
+      "id": "analyze_and_route", 
+      "type": "llm_chat",
+      "description": "Analyze query and determine which agent should handle it",
+      "config": {
+        "provider": "ollama",
+        "model": "gemma3:4b",
+        "stream": false,
+        "system_message": "You are a query routing agent. Analyze the user's query and respond with EXACTLY ONE WORD: either JAPANESE, HOME_ASSISTANT, or GENERAL.\n\nROUTING RULES:\n\nJAPANESE - Route here ONLY for:\n- Japanese language learning (grammar, vocabulary, pronunciation)\n- Japanese translation requests\n- Questions about Japanese writing systems (hiragana, katakana, kanji)\n- Japanese cultural questions related to language\n- Keywords: japanese, japan, romaji, hiragana, katakana, kanji, grammar, translate, conjugation\n\nHOME_ASSISTANT - Route here ONLY for:\n- Smart home device control (lights, switches, sensors)\n- Home automation requests\n- Device status checks\n- Keywords: light, switch, turn on, turn off, brightness, automation, device, smart home\n\nGENERAL - Route here for everything else:\n- Programming questions\n- Science, math, general knowledge\n- Cooking, health, entertainment\n- Technical explanations\n- Any topic not specifically Japanese language or smart home\n\nIMPORTANT:\n- Respond with ONLY the agent name\n- No explanations, no extra text\n- If unsure, choose GENERAL\n- Do not explain your reasoning\n\nExamples:\nUser: \"How do I say hello in Japanese?\" → JAPANESE\nUser: \"Turn on the bedroom light\" → HOME_ASSISTANT\nUser: \"What is machine learning?\" → GENERAL\nUser: \"Show me all lights\" → HOME_ASSISTANT\nUser: \"Japanese grammar help\" → JAPANESE\nUser: \"How to cook pasta\" → GENERAL",
+        "temperature": 0.1,
+        "max_tokens": 10
+      },
+      "inputs": {
+        "message": {
+          "from_step": "get_user_query",
+          "field": "user_query"
+        }
+      },
+      "outputs": ["response"]
+    },
+    {
+      "id": "format_routing_result",
+      "type": "output",
+      "description": "Format the routing decision", 
+      "config": {
+        "format": "text",
+        "template": "🤖 Router: Routing to {routing_decision} agent"
+      },
+      "inputs": {
+        "routing_decision": {
+          "from_step": "analyze_and_route",
+          "field": "response"
+        }
+      }
+    }
+  ]
+}

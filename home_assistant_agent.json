@@ -1,0 +1,52 @@
+{
+  "name": "home_assistant_agent",
+  "description": "Smart home control agent using Home Assistant tool integration",
+  "steps": [
+    {
+      "id": "get_user_request",
+      "type": "input",
+      "description": "Get user's smart home control request",
+      "config": {
+        "prompt": "What device would you like me to control?"
+      },
+      "outputs": ["user_request"]
+    },
+    {
+      "id": "control_device",
+      "type": "tool_call",
+      "description": "Use Home Assistant tool to control devices",
+      "config": {
+        "provider": "ollama",
+        "model": "hf.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF:Q4_K_M",
+        "tools": ["home_assistant"],
+        "tool_choice": "auto",
+        "max_iterations": 3,
+        "auto_execute": true,
+        "prompt": "You are a Home Assistant smart home agent. Use the home_assistant tool to fulfill user requests for controlling lights, switches, and other smart home devices.\n\nFor device control requests:\n1. First get all entities in the relevant domain (e.g., get_states with domain: 'light' for lighting requests)\n2. Find the specific device the user mentioned\n3. Perform the requested action (turn_on, turn_off, etc.)\n4. Provide a clear response about what was accomplished\n\nCommon operations:\n- get_states: Get all entities or filter by domain (e.g., domain: 'light')\n- get_state: Get state of specific entity\n- turn_on: Turn on an entity\n- turn_off: Turn off an entity\n\nAlways be helpful and clear about what actions you're taking.",
+        "temperature": 0.1
+      },
+      "inputs": {
+        "message": {
+          "from_step": "get_user_request",
+          "field": "user_request"
+        }
+      },
+      "outputs": ["response"]
+    },
+    {
+      "id": "format_response",
+      "type": "output",
+      "description": "Format the final response",
+      "config": {
+        "format": "text",
+        "template": "🏠 Smart Home Assistant: {response}"
+      },
+      "inputs": {
+        "response": {
+          "from_step": "control_device",
+          "field": "response"
+        }
+      }
+    }
+  ]
+}
